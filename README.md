@@ -43,7 +43,7 @@ vvp alu.out
 # Open the waveform in GTKWave
 gtkwave alu.vcd &
 ```
-# 📝 Design Philosophy
+## 📝 Design Philosophy
 - **Synthesizable RTL**: Strict adherence to synthesizable SystemVerilog constructs
 - **Modularity**: The datapath is broken down into easily testable, isolated components before top-level integration
 - **Specification Driven**: Architected directly from the official RISC-V Unprivileged ISA Specification
