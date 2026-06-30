@@ -11,6 +11,7 @@ module tb_regfile;
     logic [31:0] rd1;
     logic [31:0] rd2;
 
+    // Instantiate the register file
     regfile uut(
         .clk(clk),
         .we(we),
@@ -22,12 +23,14 @@ module tb_regfile;
         .rd2(rd2)
     );
 
+    // Generate the clock
     always #5 clk = ~clk;
 
     initial begin
         $dumpfile("regfile.vcd");
         $dumpvars(9, tb_regfile);
 
+        // Initialize all inputs to zero
         clk = 0;
         we = 0;
         rs1 = 0;
@@ -35,38 +38,40 @@ module tb_regfile;
         rd = 0;
         wd = 0;
 
+        // Wait for 10ns
         #10;
 
-        // test 1:
+        // Test 1: Write a hex value to x5
         we = 1;
         rd = 5'd5;
         wd = 32'hDEADBEEF;
         #10;
 
-        // test 2
+        // Test 2: Read from x5 and x0
         we = 0;
         rs1 = 5'd5;
         rs2 = 5'd0;
         #10;
 
-        //test 3
+        // Test 3: Attempt to overwrite x0
         we = 1;
         rd = 5'd0;
         wd = 32'hFFFFFFFF;
         #10;
 
-        //test 4
+        // Test 4: Write to x10
         we = 1;
         rd = 5'd10;
         wd = 32'h12345678;
         #10;
 
-        //test 5
+        // Test 5: Verify Write Enable protection
         we = 0;
         rd = 5'd10;
         wd = 32'hBADBAD00;
         #10;
 
+        // Test 6: Final read for confirmation
         rs1 = 5'd0;
         rs2 = 5'd10;
         #10;

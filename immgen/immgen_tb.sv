@@ -1,10 +1,13 @@
 `timescale 1ns / 1ps
 
 module tb_immgen;
+
+    // Declare signals
     logic [31:0] inst;
     logic [2:0] imm_src;
     logic [31:0] imm;
 
+    // Instantiate the ImmGen
     immgen uut(
         .inst(inst),
         .imm_src(imm_src),

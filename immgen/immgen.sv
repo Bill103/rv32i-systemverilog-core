@@ -1,9 +1,9 @@
 module immgen(
-    input logic [31:0] inst,
-    input logic [2:0] imm_src,
-    output logic [31:0] imm
+    input logic [31:0] inst,        // Full 32-bit instruction from memory
+    input logic [2:0] imm_src,      // Control signal that defines the instruction format
+    output logic [31:0] imm         // The decoded, sign extended immediate
 );
-
+    // Calculate all possible immediate formats
     logic [31:0] imm_i, imm_s, imm_b, imm_u, imm_j;
 
     assign imm_i = {{20{inst[31]}}, inst[31:20]};
@@ -12,6 +12,7 @@ module immgen(
     assign imm_u = {inst[31:12], 12'b0};
     assign imm_j = {{12{inst[31]}}, inst[19:12], inst[20], inst[30:21], 1'b0};
 
+    // route the pre-calculated signals
     always_comb begin
         case (imm_src)
             3'b000: imm = imm_i;    // I-type
