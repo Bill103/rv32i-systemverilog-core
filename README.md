@@ -14,11 +14,11 @@ This project is currently under active development. The primary goal is to build
 - [x] Arithmetic Logic Unit (ALU) - Supports all 10 base integer operations
 - [x] Synchronous Register File (32x32-bit, `x0` hardwired to zero)
 - [x] Immediate Generator (Decodes I, S, B, U, and J type instructions)
-- [ ] Program Counter (PC) & Branch Adder
-- [ ] Control Unit & ALU Decoder
+- [x] Program Counter (PC) & Branch Adder
+- [x] Control Unit & ALU Decoder
 
 **Memory & Interconnect:**
-- [ ] Instruction Memory (ROM)
+- [x] Instruction Memory (ROM)
 - [ ] Data Memory (RAM)
 - [ ] Top-Level CPU Wiring
 
