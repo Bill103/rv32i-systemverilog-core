@@ -19,7 +19,7 @@ This project is currently under active development. The primary goal is to build
 
 **Memory & Interconnect:**
 - [x] Instruction Memory (ROM)
-- [ ] Data Memory (RAM)
+- [x] Data Memory (RAM)
 - [ ] Top-Level CPU Wiring
 
 ## 💻 Toolchain & Simulation
