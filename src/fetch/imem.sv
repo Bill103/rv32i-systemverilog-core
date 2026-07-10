@@ -1,4 +1,4 @@
-module imem(
+module imem #(parameter INIT_FILE = "programs/fibonacci.hex")( 
     input logic [31:0] a,
     output logic [31:0] rd
 );
@@ -11,6 +11,6 @@ module imem(
     // Later we will load a real program
     initial begin
         // Look for a file named "program.hex" which contains the code
-        $readmemh("program.hex", RAM);
+        $readmemh(INIT_FILE, RAM);
     end
 endmodule
