@@ -14,6 +14,14 @@ module regfile(
     // An array of 32 registers, each 32 bits wide
     logic [31:0] registers [31:0];
 
+    function [31:0] get_reg(input [4:0] idx);
+        get_reg = registers[idx];
+    endfunction
+
+    initial begin
+        for (int i=0; i<32; i++) registers[i] = 32'd0;
+    end
+
     always_ff @(posedge clk) begin
         // Only write if we is high and the register to be written isn't x0
         if(we && rd != 5'd0) begin
@@ -22,7 +30,10 @@ module regfile(
     end
 
     // If the address is 0, output 0. Else output the registers contents
-    assign rd1 = (rs1 == 5'd0) ? 32'b0 : registers[rs1];
-    assign rd2 = (rs2 == 5'd0) ? 32'b0 : registers[rs2];
+    assign rd1 = (rs1 == 5'd0)     ? 32'd0 :
+                 (we && rs1 == rd) ? wd : registers[rs1];
+    
+    assign rd2 = (rs2 ==  5'd0)     ? 32'd0 :
+                 (we && rs2 == rd)  ? wd : registers[rs2];
 
 endmodule

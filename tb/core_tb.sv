@@ -15,23 +15,24 @@ module core_tb;
     initial begin
         $dumpfile("core.vcd");
         $dumpvars(0, core_tb);
-        for (int i = 0; i < 32; i++) begin
-            $dumpvars(0, uut.rf_inst.registers[i]);
-        end
-
-        for (int i = 0; i< 10; i++) begin
-            $dumpvars(0, uut.dmem_inst.RAM[i]);
-        end
-
         clk = 0;
         rst = 1;
         #10;
 
         rst = 0;
 
-        #1000;
+        #300;
 
         $display("Execution Complete!");
+        $display ("x1 (expected 5) : %0d", uut.rf_inst.get_reg(5'd1));
+        $display ("x2 (expected 15) : %0d", uut.rf_inst.get_reg(5'd2));
+        $display ("x3 (expected 15) : %0d", uut.rf_inst.get_reg(5'd3));
+        $display ("x4 (expected 16) : %0d", uut.rf_inst.get_reg(5'd4));
+        $display ("x5 (expected 0) : %0d (squashed branch delay)", uut.rf_inst.get_reg(5'd5));
+        $display ("x6 (expected 42) : %0d", uut.rf_inst.get_reg(5'd6));
+        
+        
+
         $finish;
     end
 

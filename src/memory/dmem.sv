@@ -10,6 +10,10 @@ module dmem(
     // 256B RAM
     logic [31:0] RAM [63:0];
 
+    initial begin
+        for (int i = 0; i<64; i++) RAM[i] = 32'h0;
+    end
+
     // Instantly output the data at the requested address
     assign rd = RAM[a[31:2]];
 
