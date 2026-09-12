@@ -4,32 +4,34 @@
 ![Language](https://img.shields.io/badge/Language-SystemVerilog-blue)
 ![Tools](https://img.shields.io/badge/Tools-Icarus_Verilog_%7C_GTKWave-lightgrey)
 
-A 32-bit single-cycle microprocessor built from scratch in SystemVerilog, targeting full compliance with the RISC-V RV32I base integer instruction set.
+A 32-bit pipelined microprocessor built from scratch in SystemVerilog, targeting full compliance with the RISC-V RV32I base integer instruction set.
 
-This project is currently under active development. The primary goal is to build a fully synthesizable RTL core capable of executing bare-metal C binaries, prioritizing clean sequential logic and modular datapath design.
+The core implements a classic 5-stage RISC pipeline (IF, ID, EX, MEM, WB) featuring full hazard mitigation.
 
-## 📁 Repository Structure
+## Repository Structure
 
 The project is organized as follows:
 * **`src/`**: Synthesizable RTL (Fetch, Decode, Execute, Memory, Control)
 * **`tb/`**: Component-level unit tests and top-level integration testbenches
 * **`programs/`**: Assembly sources files and compiled `.hex` machine code
 
-## 🛠️ Architecture Progress
+## Architecture Progress
 
-**Execution Datapath:**
+**Pipelined Datapath & Hazard Unit**
+- [x] Classic 5-Stage Pipeline Registers (IF/ID, ID/EX, EX/MEM, MEM/WB)
+- [x] Forwarding Unit
+- [x] Hazard Detection Unit
+- [x] Control Hazard Unit
+- [x] Internal Register File write-through forwarding
+
+**Core Execution & Storage:**
 - [x] Arithmetic Logic Unit (ALU) - Supports all 10 base integer operations
 - [x] Synchronous Register File (32x32-bit, `x0` hardwired to zero)
 - [x] Immediate Generator (Decodes I, S, B, U, and J type instructions)
-- [x] Program Counter (PC) & Branch Adder
-- [x] Control Unit & ALU Decoder
+- [x] Intruction Memory (ROM) & Data Memory (RAM)
+- [x] Top-Level CPU Integration & Wiring
 
-**Memory & Interconnect:**
-- [x] Instruction Memory (ROM)
-- [x] Data Memory (RAM)
-- [x] Top-Level CPU Wiring
-
-## 💻 Toolchain & Simulation
+## Toolchain & Simulation
 
 This core is designed and verified using open-source EDA tools on Linux.
 
@@ -52,21 +54,27 @@ vvp core.out
 gtkwave core.vcd
 ```
 
-### Running Unit Tests
+### Quick Start: Pipeline Integration Test
 
-Each module is verified using a standalone testbench. To run a simulation (e.g., for the ALU):
+The core is verified with a pipeline hazard test suite exercising RAW forwarding, memory store-to-load dependencies, load-use interlocks and branch squashing.
+
+To run the top-level integration test:
 
 ```bash
-# Compile the SystemVerilog files
-iverilog -g2012 -o alu.out alu.sv alu_tb.sv
+# 1. Compile the pipelined core and testbench
+iverilog -g2012 -o core.out \
+    src/fetch/*.sv \
+    src/decode/*.sv \
+    src/execute/*.sv \
+    src/memory/*.sv \
+    src/control/*.sv \
+    src/pipeline/*.sv \
+    src/core.sv \
+    src/tb/core_tb.sv
 
-# Execute the simulation
-vvp alu.out
+# 2. Execute the simulation
+vvp core.out
 
-# Open the waveform in GTKWave
-gtkwave alu.vcd &
+# 3. View the results
+gtkwave core.vcd
 ```
-## 📝 Design Philosophy
-- **Synthesizable RTL**: Strict adherence to synthesizable SystemVerilog constructs
-- **Modularity**: The datapath is broken down into easily testable, isolated components before top-level integration
-- **Specification Driven**: Architected directly from the official RISC-V Unprivileged ISA Specification
