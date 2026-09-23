@@ -14,6 +14,15 @@ module tb_immgen;
         .imm(imm)
     );
 
+    task automatic check_immediate(
+        input logic [31:0] expected,
+        input string test_name
+    );
+        if (imm !== expected) begin
+            $fatal(1, "%s: expected immediate %h, got %h", test_name, expected, imm);
+        end
+    endtask
+
     initial begin
         $dumpfile("immgen.vcd");
         $dumpvars(0, tb_immgen);
@@ -26,6 +35,7 @@ module tb_immgen;
         inst = 32'h8A500000;
         imm_src = 3'b000;
         #10;
+        check_immediate(32'hFFFFF8A5, "I-type");
 
         // Test 2: S-type
         // imm is split: inst[31:25] and inst[11:7]
@@ -34,6 +44,7 @@ module tb_immgen;
         inst = 32'h0A000A80;
         imm_src = 3'b001;
         #10;
+        check_immediate(32'h000000B5, "S-type");
 
         // Test 3: B-type
         // For inst = 32'hFE000F80, the bits unpack as:
@@ -42,6 +53,7 @@ module tb_immgen;
         inst = 32'hFE000F80;
         imm_src = 3'b010;
         #10;
+        check_immediate(32'hFFFFFFFE, "B-type");
 
         // Test 4: U-type
         // Grabs the top 20 bits and pads the rest with zeros
@@ -50,6 +62,7 @@ module tb_immgen;
         inst = 32'hABCDE000;
         imm_src = 3'b011;
         #10;
+        check_immediate(32'hABCDE000, "U-type");
 
         // Test 5: J-type
         // We scramble the value +8 onto the inst fields
@@ -57,6 +70,7 @@ module tb_immgen;
         inst = 32'h00800000;
         imm_src = 3'b100;
         #10;
+        check_immediate(32'h00000008, "J-type");
 
         $display("end of sim");
         $finish;

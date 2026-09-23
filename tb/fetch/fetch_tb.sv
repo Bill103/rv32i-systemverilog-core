@@ -23,6 +23,19 @@ module fetch_tb;
     // Continuously take the current address, add 4 and feed it to next_pc
     assign next_pc = current_pc + 32'd4;
 
+    task automatic check_fetch(
+        input logic [31:0] expected_pc,
+        input logic [31:0] expected_instruction,
+        input string test_name
+    );
+        if (current_pc !== expected_pc) begin
+            $fatal(1, "%s: expected PC %h, got %h", test_name, expected_pc, current_pc);
+        end
+        if (instruction !== expected_instruction) begin
+            $fatal(1, "%s: expected instruction %h, got %h", test_name, expected_instruction, instruction);
+        end
+    endtask
+
     // Clock generator
     always #5 clk = ~clk;
 
@@ -36,12 +49,23 @@ module fetch_tb;
         $display("Resetting");
 
         #10;
+        check_fetch(32'h00000000, 32'h00500093, "reset state");
 
         // Reset low, CPU runs
         rst = 0;
         $display("Fetching Instructions");
-        // Let the clock tick for 40ns
-        #40;
+        @(posedge clk);
+        #1;
+        check_fetch(32'h00000004, 32'h00A08113, "instruction 1");
+        @(posedge clk);
+        #1;
+        check_fetch(32'h00000008, 32'h00202023, "instruction 2");
+        @(posedge clk);
+        #1;
+        check_fetch(32'h0000000C, 32'h00002183, "instruction 3");
+        @(posedge clk);
+        #1;
+        check_fetch(32'h00000010, 32'h00118213, "instruction 4");
 
         $display("Fetch Simulation Complete!");
         $finish;

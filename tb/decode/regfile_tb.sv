@@ -23,6 +23,19 @@ module tb_regfile;
         .rd2(rd2)
     );
 
+    task automatic check_reads(
+        input logic [31:0] expected_rd1,
+        input logic [31:0] expected_rd2,
+        input string test_name
+    );
+        if (rd1 !== expected_rd1) begin
+            $fatal(1, "%s: expected rd1 %h, got %h", test_name, expected_rd1, rd1);
+        end
+        if (rd2 !== expected_rd2) begin
+            $fatal(1, "%s: expected rd2 %h, got %h", test_name, expected_rd2, rd2);
+        end
+    endtask
+
     // Generate the clock
     always #5 clk = ~clk;
 
@@ -52,29 +65,36 @@ module tb_regfile;
         rs1 = 5'd5;
         rs2 = 5'd0;
         #10;
+        check_reads(32'hDEADBEEF, 32'h00000000, "stored x5 and hardwired x0");
 
         // Test 3: Attempt to overwrite x0
         we = 1;
         rd = 5'd0;
         wd = 32'hFFFFFFFF;
         #10;
+        check_reads(32'hDEADBEEF, 32'h00000000, "ignored write to x0");
 
         // Test 4: Write to x10
         we = 1;
         rd = 5'd10;
         wd = 32'h12345678;
+        rs1 = 5'd10;
+        rs2 = 5'd5;
         #10;
+        check_reads(32'h12345678, 32'hDEADBEEF, "stored x10 with read forwarding");
 
         // Test 5: Verify Write Enable protection
         we = 0;
         rd = 5'd10;
         wd = 32'hBADBAD00;
         #10;
+        check_reads(32'h12345678, 32'hDEADBEEF, "write-disabled x10 protection");
 
         // Test 6: Final read for confirmation
         rs1 = 5'd0;
         rs2 = 5'd10;
         #10;
+        check_reads(32'h00000000, 32'h12345678, "final x0 and x10 read");
 
         $display("sim complete");
         $finish;

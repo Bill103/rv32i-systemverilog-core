@@ -78,3 +78,23 @@ vvp core.out
 # 3. View the results
 gtkwave core.vcd
 ```
+
+### Automated Tests
+
+The Tcl runner compiles and executes the integration and component testbenches
+with Icarus Verilog. Run the complete suite from the repository root:
+
+```bash
+tclsh scripts/run_tests.tcl
+```
+
+Run one or more selected tests:
+
+```bash
+tclsh scripts/run_tests.tcl core alu
+```
+
+Compiled simulation binaries are written to `build/tcl/`. Each testbench
+contains its own `$fatal` assertions, so a test passes when compilation and
+simulation exit successfully. Assertion failures propagate as a nonzero
+simulation exit status and fail the Tcl run.
