@@ -214,10 +214,9 @@ module core(
         .a (srcA_E),
         .b (srcB_E),
         .alu_control(id_ex_q.ctrl.ALUControl),
-        .result (alu_result_E)
+        .result (alu_result_E),
+        .zero (zero_E)
     );
-
-    assign zero_E = (alu_result_E == 32'b0);
 
     //Branch / Jump Resolution
     assign take_branch_E = id_ex_q.ctrl.Branch & zero_E;

@@ -1,0 +1,11 @@
+// RV32I Pipeline Hazard Test Program
+// Exercises RAW forwarding, store forwarding, load-use hazard interlocks, and branch squashing.
+
+00500093 // 0x00: addi x1, x0, 5   - Initialize x1 = 5
+00A08113 // 0x04: addi x2, x1, 10  - x2 = 15 (Tests RAW EX-to-EX hazard forwarding from x1)
+00202023 // 0x08: sw   x2, 0(x0)   - mem[0] = 15 (Tests store data forwarding from x2)
+00002183 // 0x0C: lw   x3, 0(x0)   - x3 = mem[0] = 15 (Memory load)
+00118213 // 0x10: addi x4, x3, 1   - x4 = 16 (Tests Load-Use hazard stall / pipeline bubble)
+00108463 // 0x14: beq  x1, x1, 8   - Branch taken to PC + 8 = 0x1C (Target resolution)
+06300293 // 0x18: addi x5, x0, 99  - Squashed instruction (Tests branch hazard pipeline flush)
+02A00313 // 0x1C: addi x6, x0, 42  - Branch target (x6 = 42, verified execution resumption)

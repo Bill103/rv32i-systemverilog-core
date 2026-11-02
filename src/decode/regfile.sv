@@ -12,12 +12,14 @@ module regfile(
 );
 
     // An array of 32 registers, each 32 bits wide
-    logic [31:0] registers [31:0];
+    logic [31:0] registers [0:31];
 
+    // synthesis translate_off
     function [31:0] get_reg(input [4:0] idx);
         get_reg = registers[idx];
     endfunction
-
+    // synthesis translate_on
+    
     initial begin
         for (int i=0; i<32; i++) registers[i] = 32'd0;
     end

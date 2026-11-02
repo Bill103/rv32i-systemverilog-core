@@ -1,4 +1,4 @@
-module imem #(parameter INIT_FILE = "programs/pipeline_test.hex")( 
+module imem #(parameter INIT_FILE = "pipeline_test.mem")( 
     input logic [31:0] a,
     output logic [31:0] rd
 );
