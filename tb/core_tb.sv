@@ -5,7 +5,9 @@ module core_tb;
     logic clk;
     logic rst;
 
-    core uut(
+    core #(
+        .INIT_FILE("programs/pipeline_test.mem")
+    ) uut (
         .clk(clk),
         .rst(rst)
     );

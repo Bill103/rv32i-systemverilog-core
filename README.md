@@ -48,9 +48,9 @@ The project is organized as follows:
 The core has been synthesized and implemented using **AMD Vivado**, targeting a **Xilinx Artix-7** (`xc7a35tcsg324-1`).
 
 * **Operating Clock:** 50.0 MHz (derived from 100 MHz board clock via MMCM `clk_wiz_0`)
-* **Timing:** **MET** (WNS: **+6.236 ns**, theoretical $F_{\max} \approx 72.6\text{ MHz}$)
-* **Resource Utilization:** **497 Slice LUTs** (2.39%), **238 Registers** (0.57%), **141 Slices**, **0.5 BRAM** Tile
-* **Total On-Chip Power:** **0.179 W** (109 mW dynamic, 70 mW device static)
+* **Timing:** **MET** (WNS: **+8.043 ns**, theoretical $F_{\max} \approx 83.6\text{ MHz}$)
+* **Resource Utilization:** **570 Slice LUTs** (2.74%), **271 Registers** (0.65%), **155 Slices**, **0.5 BRAM** Tile
+* **Total On-Chip Power:** **0.179 W** (108 mW dynamic, 70 mW device static)
 
 The top-level wrapper is located in [`src/fpga.sv`](src/fpga.sv) and constraints in [`timing.xdc`](timing.xdc). Full post-route utilization, timing summary, power, and DRC reports are available in the [`reports/`](reports/) directory.
 

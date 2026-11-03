@@ -1,4 +1,6 @@
-module core(
+module core #(
+    parameter INIT_FILE = "pipeline_test.mem"
+)(
     input logic clk,
     input logic rst
 );
@@ -15,6 +17,7 @@ module core(
         logic Branch;
         logic [1:0] Jump;
         logic [3:0] ALUControl;
+        logic [1:0] ALUSrcA;
         logic ALUSrc;
     } ctrl_ex_t;
 
@@ -39,6 +42,7 @@ module core(
 
     typedef struct packed {
         ctrl_ex_t ctrl;
+        logic [2:0] funct3;
         logic [31:0] pc;
         logic [31:0] pc_plus_4;
         logic [31:0] rd1;
@@ -51,12 +55,12 @@ module core(
 
     typedef struct packed {
         ctrl_mem_t ctrl;
+        logic [2:0] funct3;
         logic [31:0] pc_target;
         logic [31:0] pc_plus_4;
         logic [31:0] alu_result;
         logic [31:0] write_data;
         logic [4:0] rd;
-        logic zero;
     } ex_mem_reg_t;
 
     typedef struct packed {
@@ -100,8 +104,10 @@ module core(
         .pc (pc_current)
     );
 
-    imem imem_inst(
-        .a (pc_current),
+    imem #(
+        .INIT_FILE(INIT_FILE)
+    ) imem_inst (
+        .a  (pc_current),
         .rd (inst_F)
     );
 
@@ -114,12 +120,12 @@ module core(
         if (rst) begin
             if_id_q <= '0;
         end else if (flush_D) begin
-        // NOP
-        if_id_q.pc <= '0;
-        if_id_q.pc_plus_4 <= '0;
-        if_id_q.inst <= 32'h0000_0013;
-        end else if(!stall_D) begin
-        if_id_q <= if_id_in;
+            // NOP
+            if_id_q.pc <= '0;
+            if_id_q.pc_plus_4 <= '0;
+            if_id_q.inst <= 32'h0000_0013;
+        end else if (!stall_D) begin
+            if_id_q <= if_id_in;
         end
     end
 
@@ -129,7 +135,7 @@ module core(
     logic [31:0] rd1_D, rd2_D, imm_ext_D;
     ctrl_ex_t ctrl_D;
     logic [2:0] ImmSrc_D;
-    logic [31:0] result_W; //Driven from WB stage
+    logic [31:0] result_W; // Driven from WB stage
 
     controller ctrl_inst (
         .op         (if_id_q.inst[6:0]),
@@ -137,6 +143,7 @@ module core(
         .funct7b5   (if_id_q.inst[30]),
         .RegWrite   (ctrl_D.RegWrite),
         .ImmSrc     (ImmSrc_D),
+        .ALUSrcA    (ctrl_D.ALUSrcA),
         .ALUSrc     (ctrl_D.ALUSrc),
         .MemWrite   (ctrl_D.MemWrite),
         .ResultSrc  (ctrl_D.ResultSrc),
@@ -147,31 +154,32 @@ module core(
 
     regfile rf_inst (
         .clk (clk),
-        .we (mem_wb_q.ctrl.RegWrite),
+        .we  (mem_wb_q.ctrl.RegWrite),
         .rs1 (if_id_q.inst[19:15]),
         .rs2 (if_id_q.inst[24:20]),
-        .rd (mem_wb_q.rd),
-        .wd (result_W),
+        .rd  (mem_wb_q.rd),
+        .wd  (result_W),
         .rd1 (rd1_D),
         .rd2 (rd2_D)
     );
 
     immgen immgen_inst (
-        .inst (if_id_q.inst),
+        .inst    (if_id_q.inst),
         .imm_src (ImmSrc_D),
-        .imm (imm_ext_D)
+        .imm     (imm_ext_D)
     );
 
     // ID/EX Pipeline Register Pack
-    assign id_ex_in.ctrl = ctrl_D;
-    assign id_ex_in.pc = if_id_q.pc;
+    assign id_ex_in.ctrl    = ctrl_D;
+    assign id_ex_in.funct3  = if_id_q.inst[14:12];
+    assign id_ex_in.pc      = if_id_q.pc;
     assign id_ex_in.pc_plus_4 = if_id_q.pc_plus_4;
-    assign id_ex_in.rd1 = rd1_D;
-    assign id_ex_in.rd2 = rd2_D;
+    assign id_ex_in.rd1     = rd1_D;
+    assign id_ex_in.rd2     = rd2_D;
     assign id_ex_in.imm_ext = imm_ext_D;
-    assign id_ex_in.rs1 = if_id_q.inst[19:15];
-    assign id_ex_in.rs2 = if_id_q.inst[24:20];
-    assign id_ex_in.rd = if_id_q.inst[11:7];
+    assign id_ex_in.rs1     = if_id_q.inst[19:15];
+    assign id_ex_in.rs2     = if_id_q.inst[24:20];
+    assign id_ex_in.rd      = if_id_q.inst[11:7];
 
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
@@ -186,23 +194,32 @@ module core(
     // ===================================================
     // 5. EXECUTE STAGE (EX)
     // ===================================================
-    logic [31:0] srcA_E, srcB_forwarded_E, srcB_E, alu_result_E;
+    logic [31:0] srcA_forwarded_E, srcA_E, srcB_forwarded_E, srcB_E, alu_result_E;
     logic zero_E, take_branch_E;
 
     // Forwarding MUX for ALU srcA
     always_comb begin
         case (forward_a_E)
-            2'b10: srcA_E = ex_mem_q.alu_result;
-            2'b01: srcA_E = result_W;
-            default: srcA_E = id_ex_q.rd1;
+            2'b10:   srcA_forwarded_E = ex_mem_q.alu_result;
+            2'b01:   srcA_forwarded_E = result_W;
+            default: srcA_forwarded_E = id_ex_q.rd1;
         endcase
     end
 
-    // Forwardig MUX for ALU srcB / store data
+    // ALU srcA operand selection (rs1 vs PC for AUIPC vs 0 for LUI)
+    always_comb begin
+        case (id_ex_q.ctrl.ALUSrcA)
+            2'b01:   srcA_E = id_ex_q.pc;   // AUIPC
+            2'b10:   srcA_E = 32'd0;        // LUI
+            default: srcA_E = srcA_forwarded_E;
+        endcase
+    end
+
+    // Forwarding MUX for ALU srcB / store data
     always_comb begin
         case (forward_b_E)
-            2'b10:  srcB_forwarded_E = ex_mem_q.alu_result;
-            2'b01:  srcB_forwarded_E = result_W;
+            2'b10:   srcB_forwarded_E = ex_mem_q.alu_result;
+            2'b01:   srcB_forwarded_E = result_W;
             default: srcB_forwarded_E = id_ex_q.rd2;
         endcase
     end
@@ -211,15 +228,31 @@ module core(
     assign srcB_E = id_ex_q.ctrl.ALUSrc ? id_ex_q.imm_ext : srcB_forwarded_E;
     
     alu alu_inst (
-        .a (srcA_E),
-        .b (srcB_E),
-        .alu_control(id_ex_q.ctrl.ALUControl),
-        .result (alu_result_E),
-        .zero (zero_E)
+        .a           (srcA_E),
+        .b           (srcB_E),
+        .alu_control (id_ex_q.ctrl.ALUControl),
+        .result      (alu_result_E),
+        .zero        (zero_E)
     );
 
-    //Branch / Jump Resolution
-    assign take_branch_E = id_ex_q.ctrl.Branch & zero_E;
+    // Branch Condition Evaluation (supports all 6 RV32I branch types)
+    always_comb begin
+        if (id_ex_q.ctrl.Branch) begin
+            case (id_ex_q.funct3)
+                3'b000: take_branch_E = (srcA_forwarded_E == srcB_forwarded_E);                         // BEQ
+                3'b001: take_branch_E = (srcA_forwarded_E != srcB_forwarded_E);                         // BNE
+                3'b100: take_branch_E = ($signed(srcA_forwarded_E) < $signed(srcB_forwarded_E));        // BLT
+                3'b101: take_branch_E = ($signed(srcA_forwarded_E) >= $signed(srcB_forwarded_E));       // BGE
+                3'b110: take_branch_E = (srcA_forwarded_E < srcB_forwarded_E);                         // BLTU
+                3'b111: take_branch_E = (srcA_forwarded_E >= srcB_forwarded_E);                        // BGEU
+                default: take_branch_E = 1'b0;
+            endcase
+        end else begin
+            take_branch_E = 1'b0;
+        end
+    end
+
+    // Target calculation and PC source selection
     assign pc_src_E = (id_ex_q.ctrl.Jump != 2'b00) || take_branch_E;
 
     always_comb begin
@@ -233,13 +266,17 @@ module core(
     end
 
     // EX/MEM Pipeline Register Pack
-    assign ex_mem_in.ctrl.RegWrite = id_ex_q.ctrl.RegWrite;
+    assign ex_mem_in.ctrl.RegWrite  = id_ex_q.ctrl.RegWrite;
     assign ex_mem_in.ctrl.ResultSrc = id_ex_q.ctrl.ResultSrc;
-    assign ex_mem_in.ctrl.MemWrite = id_ex_q.ctrl.MemWrite;
-    assign ex_mem_in.alu_result = alu_result_E;
-    assign ex_mem_in.write_data = srcB_forwarded_E;
-    assign ex_mem_in.pc_plus_4 = id_ex_q.pc_plus_4;
-    assign ex_mem_in.rd = id_ex_q.rd;
+    assign ex_mem_in.ctrl.MemWrite  = id_ex_q.ctrl.MemWrite;
+    assign ex_mem_in.ctrl.Branch    = id_ex_q.ctrl.Branch;
+    assign ex_mem_in.ctrl.Jump      = id_ex_q.ctrl.Jump;
+    assign ex_mem_in.funct3         = id_ex_q.funct3;
+    assign ex_mem_in.pc_target      = pc_target_E;
+    assign ex_mem_in.alu_result     = alu_result_E;
+    assign ex_mem_in.write_data     = srcB_forwarded_E;
+    assign ex_mem_in.pc_plus_4      = id_ex_q.pc_plus_4;
+    assign ex_mem_in.rd             = id_ex_q.rd;
 
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
@@ -249,26 +286,78 @@ module core(
         end
     end
 
-    //====================================================
+    // ===================================================
     // 6. MEMORY STAGE (MEM)
     // ===================================================
-    logic [31:0] read_data_M;
+    logic [3:0]  dmem_we;
+    logic [31:0] dmem_wd;
+    logic [31:0] raw_read_data_M, read_data_M;
+    logic [7:0]  selected_byte;
+    logic [15:0] selected_half;
+
+    // Store byte alignment & write-enable generation (SB, SH, SW)
+    always_comb begin
+        if (!ex_mem_q.ctrl.MemWrite) begin
+            dmem_we = 4'b0000;
+            dmem_wd = ex_mem_q.write_data;
+        end else begin
+            case (ex_mem_q.funct3[1:0])
+                2'b00: begin // SB (Store Byte)
+                    dmem_we = 4'b0001 << ex_mem_q.alu_result[1:0];
+                    dmem_wd = {4{ex_mem_q.write_data[7:0]}};
+                end
+                2'b01: begin // SH (Store Halfword)
+                    dmem_we = ex_mem_q.alu_result[1] ? 4'b1100 : 4'b0011;
+                    dmem_wd = {2{ex_mem_q.write_data[15:0]}};
+                end
+                2'b10: begin // SW (Store Word)
+                    dmem_we = 4'b1111;
+                    dmem_wd = ex_mem_q.write_data;
+                end
+                default: begin
+                    dmem_we = 4'b1111;
+                    dmem_wd = ex_mem_q.write_data;
+                end
+            endcase
+        end
+    end
 
     dmem dmem_inst (
         .clk (clk),
-        .we (ex_mem_q.ctrl.MemWrite),
-        .a (ex_mem_q.alu_result),
-        .wd (ex_mem_q.write_data),
-        .rd (read_data_M)
+        .we  (dmem_we),
+        .a   (ex_mem_q.alu_result),
+        .wd  (dmem_wd),
+        .rd  (raw_read_data_M)
     );
 
+    // Load byte / halfword selection and sign/zero extension (LB, LH, LW, LBU, LHU)
+    always_comb begin
+        case (ex_mem_q.alu_result[1:0])
+            2'b00: selected_byte = raw_read_data_M[7:0];
+            2'b01: selected_byte = raw_read_data_M[15:8];
+            2'b10: selected_byte = raw_read_data_M[23:16];
+            2'b11: selected_byte = raw_read_data_M[31:24];
+        endcase
+
+        selected_half = ex_mem_q.alu_result[1] ? raw_read_data_M[31:16] : raw_read_data_M[15:0];
+
+        case (ex_mem_q.funct3)
+            3'b000:  read_data_M = {{24{selected_byte[7]}}, selected_byte}; // LB (signed byte)
+            3'b001:  read_data_M = {{16{selected_half[15]}}, selected_half}; // LH (signed halfword)
+            3'b010:  read_data_M = raw_read_data_M;                          // LW (word)
+            3'b100:  read_data_M = {24'b0, selected_byte};                  // LBU (unsigned byte)
+            3'b101:  read_data_M = {16'b0, selected_half};                  // LHU (unsigned halfword)
+            default: read_data_M = raw_read_data_M;
+        endcase
+    end
+
     // MEM/WB Pipeline Register Pack
-    assign mem_wb_in.ctrl.RegWrite = ex_mem_q.ctrl.RegWrite;
+    assign mem_wb_in.ctrl.RegWrite  = ex_mem_q.ctrl.RegWrite;
     assign mem_wb_in.ctrl.ResultSrc = ex_mem_q.ctrl.ResultSrc;
-    assign mem_wb_in.alu_result = ex_mem_q.alu_result;
-    assign mem_wb_in.read_data = read_data_M;
-    assign mem_wb_in.pc_plus_4 = ex_mem_q.pc_plus_4;
-    assign mem_wb_in.rd = ex_mem_q.rd;
+    assign mem_wb_in.alu_result     = ex_mem_q.alu_result;
+    assign mem_wb_in.read_data      = read_data_M;
+    assign mem_wb_in.pc_plus_4      = ex_mem_q.pc_plus_4;
+    assign mem_wb_in.rd             = ex_mem_q.rd;
 
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
@@ -283,9 +372,9 @@ module core(
     // ===================================================
     always_comb begin
         case (mem_wb_q.ctrl.ResultSrc)
-            2'b00: result_W = mem_wb_q.alu_result;
-            2'b01: result_W = mem_wb_q.read_data;
-            2'b10: result_W = mem_wb_q.pc_plus_4;
+            2'b00:   result_W = mem_wb_q.alu_result;
+            2'b01:   result_W = mem_wb_q.read_data;
+            2'b10:   result_W = mem_wb_q.pc_plus_4;
             default: result_W = 32'b0;
         endcase
     end
@@ -295,25 +384,26 @@ module core(
     // ===================================================
 
     forwarding_unit fwd_u (
-        .rs1_E (id_ex_q.rs1),
-        .rs2_E (id_ex_q.rs2),
-        .rd_M (ex_mem_q.rd),
-        .reg_write_M (ex_mem_q.ctrl.RegWrite),
-        .rd_W (mem_wb_q.rd),
-        .reg_write_W (mem_wb_q.ctrl.RegWrite),
-        .forward_a_E (forward_a_E),
-        .forward_b_E (forward_b_E)
+        .rs1_E        (id_ex_q.rs1),
+        .rs2_E        (id_ex_q.rs2),
+        .rd_M         (ex_mem_q.rd),
+        .reg_write_M  (ex_mem_q.ctrl.RegWrite),
+        .rd_W         (mem_wb_q.rd),
+        .reg_write_W  (mem_wb_q.ctrl.RegWrite),
+        .forward_a_E  (forward_a_E),
+        .forward_b_E  (forward_b_E)
     );
 
     hazard_unit hzd_u (
-        .rs1_D (if_id_q.inst[19:15]),
-        .rs2_D (if_id_q.inst[24:20]),
-        .rd_E (id_ex_q.rd),
+        .rs1_D        (if_id_q.inst[19:15]),
+        .rs2_D        (if_id_q.inst[24:20]),
+        .rd_E         (id_ex_q.rd),
         .result_src_E (id_ex_q.ctrl.ResultSrc),
-        .pc_src_E (pc_src_E),
-        .stall_F (stall_F),
-        .stall_D (stall_D),
-        .flush_D (flush_D),
-        .flush_E (flush_E)
+        .pc_src_E     (pc_src_E),
+        .stall_F      (stall_F),
+        .stall_D      (stall_D),
+        .flush_D      (flush_D),
+        .flush_E      (flush_E)
     );
+
 endmodule

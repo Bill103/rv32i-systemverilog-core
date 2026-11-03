@@ -3,17 +3,17 @@
 module dmem_tb;
 
     logic clk;
-    logic we;
+    logic [3:0] we;
     logic [31:0] a;
     logic [31:0] wd;
     logic [31:0] rd;
 
     dmem uut(
-        .clk(clk),
-        .we(we),
-        .a(a),
-        .wd(wd),
-        .rd(rd)
+        .clk (clk),
+        .we  (we),
+        .a   (a),
+        .wd  (wd),
+        .rd  (rd)
     );
 
     task automatic check_read(
@@ -32,35 +32,49 @@ module dmem_tb;
         $dumpvars(0, dmem_tb);
 
         clk = 0;
-        we = 0;
+        we = 4'b0000;
         a = 0;
         wd = 0;
         #10;
 
         $display("Starting Data Memory sim");
 
-        // Test 1: Write a value to memory address 4 (Index 1)
-        we = 1;
+        // Test 1: Write a full 32-bit word to memory address 4 (Index 1)
+        we = 4'b1111;
         a = 32'd4;
         wd = 32'hBEEFCAFE;
         #10;
         check_read(32'hBEEFCAFE, "write address 4");
 
         // Test 2: Turn off Write Enable, check if we can read it
-        we = 0;
+        we = 4'b0000;
         a = 32'd4;
         #10;
         check_read(32'hBEEFCAFE, "read address 4");
 
-        // Test 3: Write another value to memory address 8 (Index 2)
-        we = 1;
+        // Test 3: Byte write (we[0]) to address 4
+        we = 4'b0001;
+        a = 32'd4;
+        wd = 32'h00000011;
+        #10;
+        check_read(32'hBEEFCA11, "byte 0 write to address 4");
+
+        // Test 4: Halfword write (we[3:2]) to address 4
+        we = 4'b1100;
+        a = 32'd4;
+        wd = 32'hAAAA0000;
+        #10;
+        check_read(32'hAAAACA11, "halfword 1 write to address 4");
+
+        // Test 5: Write another value to memory address 8 (Index 2)
+        we = 4'b1111;
         a = 32'd8;
         wd = 32'h12345678;
         #10;
         check_read(32'h12345678, "write address 8");
 
-        // Test 4: Verify Write Enable safety
-        we = 0;
+        // Test 6: Verify Write Enable safety
+        we = 4'b0000;
         a = 32'd8;
         wd = 32'hBADDBADD;
         #10;
@@ -72,4 +86,3 @@ module dmem_tb;
     end
 
 endmodule
-

@@ -5,3 +5,8 @@
 *.lxt
 *.lxt2
 *.fst
+*.wdb
+*.jou
+*.log
+xsim.dir/
+.Xil/

@@ -1,0 +1,31 @@
+// RV32I Extended Instructions Test Suite
+// Validates LUI, AUIPC, BNE, BLT, BLTU, SB, SH, LB, LBU, LH, LHU
+
+123453b7 // 0x00: lui   x7, 0x12345          - x7 = 0x12345000
+00002417 // 0x04: auipc x8, 0x2              - x8 = 0x04 + 0x2000 = 0x00002004
+00000093 // 0x08: addi  x1, x0, 0            - x1 = 0 (base pointer)
+fff00113 // 0x0C: addi  x2, x0, -1           - x2 = 0xFFFFFFFF
+0020a023 // 0x10: sw    x2, 0(x1)            - mem[0] = 0xFFFFFFFF
+05a00193 // 0x14: addi  x3, x0, 0x5A         - x3 = 0x5A
+003080a3 // 0x18: sb    x3, 1(x1)            - mem[0] byte 1 = 0x5A -> mem[0]=0xFFFF5AFF
+0010c483 // 0x1C: lbu   x9, 1(x1)            - x9 = 0x0000005A (unsigned byte)
+00008503 // 0x20: lb    x10, 0(x1)           - x10 = 0xFFFFFFFF (signed byte 0xFF)
+0000c583 // 0x24: lbu   x11, 0(x1)           - x11 = 0x000000FF (unsigned byte 0xFF)
+ffe00213 // 0x28: addi  x4, x0, -2           - x4 = 0xFFFFFFFE
+00409123 // 0x2C: sh    x4, 2(x1)            - mem[0] half 1 = 0xFFFE
+00209603 // 0x30: lh    x12, 2(x1)           - x12 = 0xFFFFFFFE (signed halfword)
+0020d683 // 0x34: lhu   x13, 2(x1)           - x13 = 0x0000FFFE (unsigned halfword)
+00100713 // 0x38: addi  x14, x0, 1           - x14 = 1
+00200793 // 0x3C: addi  x15, x0, 2           - x15 = 2
+00f71463 // 0x40: bne   x14, x15, 8          - Taken branch (1 != 2), skips 0x44
+06300813 // 0x44: addi  x16, x0, 99          - SQUASHED (delay slot)
+00100813 // 0x48: addi  x16, x0, 1           - Target: x16 = 1
+ffb00893 // 0x4C: addi  x17, x0, -5          - x17 = -5
+00200913 // 0x50: addi  x18, x0, 2           - x18 = 2
+0128c463 // 0x54: blt   x17, x18, 8          - Taken branch (-5 < 2 signed), skips 0x58
+06300993 // 0x58: addi  x19, x0, 99          - SQUASHED
+00100993 // 0x5C: addi  x19, x0, 1           - Target: x19 = 1
+01196463 // 0x60: bltu  x18, x17, 8          - Taken branch (2 < 0xFFFFFFFB unsigned)
+06300a13 // 0x64: addi  x20, x0, 99          - SQUASHED
+00100a13 // 0x68: addi  x20, x0, 1           - Target: x20 = 1
+

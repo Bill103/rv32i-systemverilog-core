@@ -9,6 +9,7 @@ module tb_controller;
 
     logic RegWrite;
     logic [2:0] ImmSrc;
+    logic [1:0] ALUSrcA;
     logic ALUSrc;
     logic MemWrite;
     logic [1:0] ResultSrc;
@@ -18,22 +19,24 @@ module tb_controller;
 
     // 2. Instantiate the Controller
     controller uut (
-        .op(op),
-        .funct3(funct3),
-        .funct7b5(funct7b5),
-        .RegWrite(RegWrite),
-        .ImmSrc(ImmSrc),
-        .ALUSrc(ALUSrc),
-        .MemWrite(MemWrite),
-        .ResultSrc(ResultSrc),
-        .Branch(Branch),
-        .Jump(Jump),
-        .ALUControl(ALUControl)
+        .op         (op),
+        .funct3     (funct3),
+        .funct7b5   (funct7b5),
+        .RegWrite   (RegWrite),
+        .ImmSrc     (ImmSrc),
+        .ALUSrcA    (ALUSrcA),
+        .ALUSrc     (ALUSrc),
+        .MemWrite   (MemWrite),
+        .ResultSrc  (ResultSrc),
+        .Branch     (Branch),
+        .Jump       (Jump),
+        .ALUControl (ALUControl)
     );
 
     task automatic check_controls(
         input logic expected_reg_write,
         input logic [2:0] expected_imm_src,
+        input logic [1:0] expected_alu_src_a,
         input logic expected_alu_src,
         input logic expected_mem_write,
         input logic [1:0] expected_result_src,
@@ -43,6 +46,7 @@ module tb_controller;
         input string test_name
     );
         if (RegWrite !== expected_reg_write || ImmSrc !== expected_imm_src ||
+            ALUSrcA !== expected_alu_src_a ||
             ALUSrc !== expected_alu_src || MemWrite !== expected_mem_write ||
             ResultSrc !== expected_result_src || Branch !== expected_branch ||
             Jump !== expected_jump || ALUControl !== expected_alu_control) begin
@@ -58,32 +62,34 @@ module tb_controller;
         $display("Starting Control Unit tests...");
 
         // Test 1: R-Type ADD
-        // Opcode: 0110011, funct3: 000, bit30: 0
-        // Expected: RegWrite=1, ALUSrc=0, ALUControl=0000 (ADD)
         op = 7'b0110011; funct3 = 3'b000; funct7b5 = 1'b0;
         #10;
-        check_controls(1'b1, 3'b000, 1'b0, 1'b0, 2'b00, 1'b0, 2'b00, 4'b0000, "R-type ADD");
+        check_controls(1'b1, 3'b000, 2'b00, 1'b0, 1'b0, 2'b00, 1'b0, 2'b00, 4'b0000, "R-type ADD");
 
         // Test 2: R-Type SUB
-        // Opcode: 0110011, funct3: 000, bit30: 1
-        // Expected: RegWrite=1, ALUSrc=0, ALUControl=0001 (SUB)
         op = 7'b0110011; funct3 = 3'b000; funct7b5 = 1'b1;
         #10;
-        check_controls(1'b1, 3'b000, 1'b0, 1'b0, 2'b00, 1'b0, 2'b00, 4'b0001, "R-type SUB");
+        check_controls(1'b1, 3'b000, 2'b00, 1'b0, 1'b0, 2'b00, 1'b0, 2'b00, 4'b0001, "R-type SUB");
 
         // Test 3: Load Word (LW)
-        // Opcode: 0000011, funct3: 010, bit30: X (doesn't matter)
-        // Expected: RegWrite=1, ALUSrc=1 (Imm), ResultSrc=01 (RAM), ALUControl=0000 (ADD)
         op = 7'b0000011; funct3 = 3'b010; funct7b5 = 1'b0;
         #10;
-        check_controls(1'b1, 3'b000, 1'b1, 1'b0, 2'b01, 1'b0, 2'b00, 4'b0000, "LW");
+        check_controls(1'b1, 3'b000, 2'b00, 1'b1, 1'b0, 2'b01, 1'b0, 2'b00, 4'b0000, "LW");
 
-        // Test 4: Branch if Equal (BEQ)
-        // Opcode: 1100011, funct3: 000, bit30: X
-        // Expected: Branch=1, ALUSrc=0 (Reg), ALUControl=0001 (SUB)
+        // Test 4: Branch (BEQ)
         op = 7'b1100011; funct3 = 3'b000; funct7b5 = 1'b0;
         #10;
-        check_controls(1'b0, 3'b010, 1'b0, 1'b0, 2'b00, 1'b1, 2'b00, 4'b0001, "BEQ");
+        check_controls(1'b0, 3'b010, 2'b00, 1'b0, 1'b0, 2'b00, 1'b1, 2'b00, 4'b0001, "BEQ");
+
+        // Test 5: LUI
+        op = 7'b0110111; funct3 = 3'b000; funct7b5 = 1'b0;
+        #10;
+        check_controls(1'b1, 3'b011, 2'b10, 1'b1, 1'b0, 2'b00, 1'b0, 2'b00, 4'b0000, "LUI");
+
+        // Test 6: AUIPC
+        op = 7'b0010111; funct3 = 3'b000; funct7b5 = 1'b0;
+        #10;
+        check_controls(1'b1, 3'b011, 2'b01, 1'b1, 1'b0, 2'b00, 1'b0, 2'b00, 4'b0000, "AUIPC");
 
         $display("Control Unit Simulation Complete!");
         $finish;
