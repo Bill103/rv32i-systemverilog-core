@@ -322,7 +322,9 @@ module core #(
         end
     end
 
-    dmem dmem_inst (
+    dmem #(
+        .INIT_FILE(INIT_FILE)
+    ) dmem_inst (
         .clk (clk),
         .we  (dmem_we),
         .a   (ex_mem_q.alu_result),

@@ -1,4 +1,7 @@
-module dmem (
+module dmem #(
+    parameter DEPTH = 4096,
+    parameter INIT_FILE = ""
+)(
     input  logic        clk,            // System Clock
     input  logic [3:0]  we,             // 4-bit Byte Write Enable
     input  logic [31:0] a,              // Memory address
@@ -6,22 +9,27 @@ module dmem (
     output logic [31:0] rd              // Read data
 );
 
-    // Create a memory array of 64 words (256B RAM)
-    logic [31:0] RAM [0:63];
+    logic [31:0] RAM [0:DEPTH-1];
 
     initial begin
-        for (int i = 0; i < 64; i++) RAM[i] = 32'h0;
+        string hex_file;
+        for (int i = 0; i < DEPTH; i++) RAM[i] = 32'h0;
+        if ($value$plusargs("HEX=%s", hex_file)) begin
+            $readmemh(hex_file, RAM);
+        end else if (INIT_FILE != "") begin
+            $readmemh(INIT_FILE, RAM);
+        end
     end
 
     // Instantly output the word at the requested address
-    assign rd = RAM[a[31:2]];
+    assign rd = RAM[a[13:2]];
 
     // Byte-enabled synchronous write
     always_ff @(posedge clk) begin
-        if (we[0]) RAM[a[31:2]][7:0]   <= wd[7:0];
-        if (we[1]) RAM[a[31:2]][15:8]  <= wd[15:8];
-        if (we[2]) RAM[a[31:2]][23:16] <= wd[23:16];
-        if (we[3]) RAM[a[31:2]][31:24] <= wd[31:24];
+        if (we[0]) RAM[a[13:2]][7:0]   <= wd[7:0];
+        if (we[1]) RAM[a[13:2]][15:8]  <= wd[15:8];
+        if (we[2]) RAM[a[13:2]][23:16] <= wd[23:16];
+        if (we[3]) RAM[a[13:2]][31:24] <= wd[31:24];
     end
 
 endmodule

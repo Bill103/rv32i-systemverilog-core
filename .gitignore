@@ -10,3 +10,5 @@
 *.log
 xsim.dir/
 .Xil/
+build/
+tb/riscv-tests/
